@@ -1,0 +1,76 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL WHENEVER SQLERROR CALL print_sqlca();
+
+void
+print_sqlca()
+{
+    fprintf(stderr, "==== sqlca ====\n");
+    fprintf(stderr, "sqlcode: %ld\n", sqlca.sqlcode);
+    fprintf(stderr, "sqlerrm.sqlerrml: %d\n", sqlca.sqlerrm.sqlerrml);
+    fprintf(stderr, "sqlerrm.sqlerrmc: %s\n", sqlca.sqlerrm.sqlerrmc);
+    fprintf(stderr, "sqlerrd: %ld %ld %ld %ld %ld %ld\n", sqlca.sqlerrd[0],sqlca.sqlerrd[1],sqlca.sqlerrd[2],
+                                                          sqlca.sqlerrd[3],sqlca.sqlerrd[4],sqlca.sqlerrd[5]);
+    fprintf(stderr, "sqlwarn: %d %d %d %d %d %d %d %d\n", sqlca.sqlwarn[0], sqlca.sqlwarn[1], sqlca.sqlwarn[2],
+                                                          sqlca.sqlwarn[3], sqlca.sqlwarn[4], sqlca.sqlwarn[5],
+                                                          sqlca.sqlwarn[6], sqlca.sqlwarn[7]);
+    fprintf(stderr, "sqlstate: %5s\n", sqlca.sqlstate);
+    fprintf(stderr, "===============\n");
+}
+
+int main(int argc, char *argv[])
+{
+    EXEC SQL BEGIN DECLARE SECTION;
+        char *phHost;
+        char hStr[1024];
+        short hStrInd;
+        double hDouble;
+        short hDoubleInd;
+    EXEC SQL END DECLARE SECTION;
+
+    if (argc < 2)
+    {
+        fprintf(stderr, "usage: %s connect_string\n", argv[0]);
+        fprintf(stderr, "sample: %s 'tcp:postgresql://localhost/template1?user=alice&password=PasswOrd!'\n", argv[0]);
+        return EXIT_FAILURE;
+    }
+
+    phHost = argv[1];
+
+    EXEC SQL CONNECT TO :phHost;
+    if (strcmp(sqlca.sqlstate, "00000") != 0)
+    {
+        return EXIT_FAILURE;
+    }
+
+//    strcpy(hStr, "blah blah");
+//    EXEC SQL SELECT NULL INTO :hStr;
+//    printf("%s\n", hStr);
+/*
+==== sqlca ====
+sqlcode: -213
+sqlerrm.sqlerrml: 39
+sqlerrm.sqlerrmc: null value without indicator on line 45
+sqlerrd: 0 0 1 0 0 0
+sqlwarn: 0 0 0 0 0 0 0 0
+sqlstate: 22002
+===============
+*/
+
+    strcpy(hStr, "blah blah");
+    EXEC SQL SELECT NULL INTO :hStr:hStrInd;
+    printf("%s\n", hStr);
+    printf("%hd\n", hStrInd);
+
+    hDouble = 123.456;
+    strcpy(hStr, "blah blah");
+    EXEC SQL SELECT NULL INTO :hDouble:hDoubleInd;
+    printf("%f\n", hDouble);
+    printf("%hd\n", hDoubleInd);
+
+EXIT_FUNC:
+    EXEC SQL DISCONNECT;
+
+    return EXIT_SUCCESS;
+}
