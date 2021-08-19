@@ -1,0 +1,81 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL WHENEVER SQLERROR CALL print_sqlca();
+
+void
+print_sqlca()
+{
+    fprintf(stderr, "==== sqlca ====\n");
+    fprintf(stderr, "sqlcode: %ld\n", sqlca.sqlcode);
+    fprintf(stderr, "sqlerrm.sqlerrml: %d\n", sqlca.sqlerrm.sqlerrml);
+    fprintf(stderr, "sqlerrm.sqlerrmc: %s\n", sqlca.sqlerrm.sqlerrmc);
+    fprintf(stderr, "sqlerrd: %ld %ld %ld %ld %ld %ld\n", sqlca.sqlerrd[0],sqlca.sqlerrd[1],sqlca.sqlerrd[2],
+                                                          sqlca.sqlerrd[3],sqlca.sqlerrd[4],sqlca.sqlerrd[5]);
+    fprintf(stderr, "sqlwarn: %d %d %d %d %d %d %d %d\n", sqlca.sqlwarn[0], sqlca.sqlwarn[1], sqlca.sqlwarn[2],
+                                                          sqlca.sqlwarn[3], sqlca.sqlwarn[4], sqlca.sqlwarn[5],
+                                                          sqlca.sqlwarn[6], sqlca.sqlwarn[7]);
+    fprintf(stderr, "sqlstate: %5s\n", sqlca.sqlstate);
+    fprintf(stderr, "===============\n");
+}
+
+int main(int argc, char *argv[])
+{
+    EXEC SQL BEGIN DECLARE SECTION;
+        char *phHost;
+        char hStr[1024];
+    EXEC SQL END DECLARE SECTION;
+
+    if (argc < 2)
+    {
+        fprintf(stderr, "usage: %s connect_string\n", argv[0]);
+        fprintf(stderr, "sample: %s 'tcp:postgresql://localhost/template1?user=alice&password=PasswOrd!'\n", argv[0]);
+        return EXIT_FAILURE;
+    }
+
+    phHost = argv[1];
+
+    EXEC SQL CONNECT TO :phHost;
+    if (strcmp(sqlca.sqlstate, "00000") != 0)
+    {
+        return EXIT_FAILURE;
+    }
+
+    EXEC SQL SELECT 'Hello, world!' INTO :hStr;
+    printf("%s\n", hStr);
+
+    EXEC SQL SELECT version() INTO :hStr;
+    printf("version: %s\n", hStr);
+
+    EXEC SQL SELECT current_setting('TIMEZONE') INTO :hStr;
+    printf("timezone: %s\n", hStr);
+
+    EXEC SQL SELECT session_user INTO :hStr;
+    printf("session_user: %s\n", hStr);
+
+    EXEC SQL SELECT current_user INTO :hStr;
+    printf("current_user: %s\n", hStr);
+
+    EXEC SQL SELECT current_database() INTO :hStr;
+    printf("database: %s\n", hStr);
+
+    EXEC SQL SELECT pg_encoding_to_char(encoding) INTO :hStr
+    FROM pg_database
+    WHERE datname = current_database();
+    printf("encoding: %s\n", hStr);
+
+    EXEC SQL SELECT datcollate INTO :hStr
+    FROM pg_database
+    WHERE datname = current_database();
+    printf("collate: %s\n", hStr);
+
+    EXEC SQL SELECT datctype INTO :hStr
+    FROM pg_database
+    WHERE datname = current_database();
+    printf("ctype: %s\n", hStr);
+
+EXIT_FUNC:
+    EXEC SQL DISCONNECT;
+
+    return EXIT_SUCCESS;
+}
