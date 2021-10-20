@@ -1,4 +1,4 @@
-TARGET=hello
+TARGET=select_null
 OBJS=main.o
 C_SRCS=main.c
 

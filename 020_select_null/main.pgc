@@ -59,12 +59,13 @@ sqlstate: 22002
 */
 
     strcpy(hStr, "blah blah");
+    hStrInd = 0;
     EXEC SQL SELECT NULL INTO :hStr:hStrInd;
     printf("%s\n", hStr);
     printf("%hd\n", hStrInd);
 
     hDouble = 123.456;
-    strcpy(hStr, "blah blah");
+    hDoubleInd = 0;
     EXEC SQL SELECT NULL INTO :hDouble:hDoubleInd;
     printf("%f\n", hDouble);
     printf("%hd\n", hDoubleInd);
