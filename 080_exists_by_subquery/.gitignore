@@ -1,0 +1,6 @@
+# intermediate files
+main.c
+*.o
+
+# executable
+exists_by_subquery
