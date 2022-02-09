@@ -1,0 +1,6 @@
+# intermediate files
+*.c
+*.o
+
+# executable
+host_array
