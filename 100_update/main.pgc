@@ -1,0 +1,83 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+// EXEC SQL WHENEVER SQLERROR CALL print_sqlca();
+
+void
+print_sqlca()
+{
+    fprintf(stderr, "==== sqlca ====\n");
+    fprintf(stderr, "sqlcode: %ld\n", sqlca.sqlcode);
+    fprintf(stderr, "sqlerrm.sqlerrml: %d\n", sqlca.sqlerrm.sqlerrml);
+    fprintf(stderr, "sqlerrm.sqlerrmc: %s\n", sqlca.sqlerrm.sqlerrmc);
+    fprintf(stderr, "sqlerrd: %ld %ld %ld %ld %ld %ld\n", sqlca.sqlerrd[0],sqlca.sqlerrd[1],sqlca.sqlerrd[2],
+                                                          sqlca.sqlerrd[3],sqlca.sqlerrd[4],sqlca.sqlerrd[5]);
+    fprintf(stderr, "sqlwarn: %d %d %d %d %d %d %d %d\n", sqlca.sqlwarn[0], sqlca.sqlwarn[1], sqlca.sqlwarn[2],
+                                                          sqlca.sqlwarn[3], sqlca.sqlwarn[4], sqlca.sqlwarn[5],
+                                                          sqlca.sqlwarn[6], sqlca.sqlwarn[7]);
+    fprintf(stderr, "sqlstate: %5s\n", sqlca.sqlstate);
+    fprintf(stderr, "===============\n");
+}
+
+int main(int argc, char *argv[])
+{
+    int result = EXIT_FAILURE;
+
+    EXEC SQL BEGIN DECLARE SECTION;
+        char *phHost;
+        char *phKey;
+        char *phField;
+        int hNum;
+    EXEC SQL END DECLARE SECTION;
+
+    if (argc < 4)
+    {
+        fprintf(stderr, "usage: %s connect_string\n", argv[0]);
+        fprintf(stderr, "sample: %s 'tcp:postgresql://localhost/postgres?user=alice&password=PasswOrd!' key field\n", argv[0]);
+        return EXIT_FAILURE;
+    }
+
+    phHost = argv[1];
+    phKey = argv[2];
+    phField = argv[3];
+
+    EXEC SQL CONNECT TO :phHost;
+    if (strcmp(sqlca.sqlstate, "00000") != 0)
+    {
+        print_sqlca();
+        return EXIT_FAILURE;
+    }
+
+    EXEC SQL
+        UPDATE sample_table
+        SET
+            F1 = :phField
+        WHERE
+            K1 = :phKey
+        ;
+
+    if (strcmp(sqlca.sqlstate, "00000") == 0)
+    {
+        printf("OK.\n");
+        print_sqlca();
+        result = EXIT_SUCCESS;
+        goto EXIT_FUNC;
+    }
+    else if (strcmp(sqlca.sqlstate, "02000") == 0)
+    {
+        printf("record not exists.\n");
+        print_sqlca();
+        result = EXIT_SUCCESS;
+        goto EXIT_FUNC;
+    }
+    else
+    {
+        print_sqlca();
+        goto EXIT_FUNC;
+    }
+
+EXIT_FUNC:
+    EXEC SQL DISCONNECT;
+
+    return result;
+}

@@ -1,0 +1,6 @@
+# intermediate files
+main.c
+*.o
+
+# executable
+update_count_0
