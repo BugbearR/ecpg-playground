@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
     if (argc < 3)
     {
         fprintf(stderr, "usage: %s connect_string sql param1 param2 ...\n", argv[0]);
-        fprintf(stderr, "sample: %s 'tcp:postgresql://localhost/template1?user=alice&password=PasswOrd!' \"SELECT f3, f4 FROM renamemetable WHERE f1=? AND f2=?\" 'A' 'B'\n", argv[0]);
+        fprintf(stderr, "sample: %s 'tcp:postgresql://localhost/postgres?user=alice&password=PasswOrd!' \"SELECT f3, f4 FROM renamemetable WHERE f1=? AND f2=?\" 'A' 'B'\n", argv[0]);
         return EXIT_FAILURE;
     }
 

@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
     if (argc < 2)
     {
         fprintf(stderr, "usage: %s connect_string\n", argv[0]);
-        fprintf(stderr, "sample: %s 'tcp:postgresql://localhost/template1?user=alice&password=PasswOrd!'\n", argv[0]);
+        fprintf(stderr, "sample: %s 'tcp:postgresql://localhost/postgres?user=alice&password=PasswOrd!'\n", argv[0]);
         return EXIT_FAILURE;
     }
 
@@ -38,6 +38,7 @@ int main(int argc, char *argv[])
     EXEC SQL CONNECT TO :phHost;
     if (strcmp(sqlca.sqlstate, "00000") != 0)
     {
+        print_sqlca();
         return EXIT_FAILURE;
     }
 

@@ -43,7 +43,7 @@ main(void)
     char hDummyChar[1];
     EXEC SQL END DECLARE SECTION;
 
-    EXEC SQL CONNECT TO template1 AS con1 USER gitpod;
+    EXEC SQL CONNECT TO postgres AS con1 USER gitpod;
     EXEC SQL SELECT pg_catalog.set_config('search_path', '', false) INTO :hDummyChar;
     EXEC SQL COMMIT;
 
