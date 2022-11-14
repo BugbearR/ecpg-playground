@@ -1,0 +1,6 @@
+# intermediate files
+main.c
+*.o
+
+# executable
+select_into_exp
