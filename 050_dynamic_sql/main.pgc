@@ -135,6 +135,7 @@ int main(int argc, char *argv[])
                 sqlvar_t *pVar = &(pCurSqlda->sqlvar[i]);
 
                 printf("%.*s", pVar->sqlname.length, pVar->sqlname.data);
+                printf(",sqlind:%hd", *pVar->sqlind);
 
                 switch (pVar->sqltype)
                 {
