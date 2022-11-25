@@ -5,7 +5,7 @@ CFLAGS = -g
 
 ECPG = ecpg
 
-MY_LDFLAGS = -lecpg -lpq
+MY_LDFLAGS = -lecpg -lpgtypes -lpq
 MY_CFLAGS = -I/usr/include/postgresql
 ECPGFLAGS = -I/usr/include/postgresql
 

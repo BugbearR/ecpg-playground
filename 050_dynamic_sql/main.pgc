@@ -1,5 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <inttypes.h>
+#include <ecpgtype.h>
+#include <pgtypes_numeric.h>
 
 EXEC SQL INCLUDE sqlca;
 EXEC SQL INCLUDE sqlda.h;
@@ -137,16 +141,34 @@ int main(int argc, char *argv[])
                 case ECPGt_char:
                     printf(",char[%d]", pVar->sqllen);
                     printf(",\"%.*s\"", pVar->sqllen, pVar->sqldata);
+                    printf(",");
+                    printHex(pVar->sqldata, pVar->sqllen);
                     break;
 
                 case ECPGt_int:
-                    printf(",int");
-                    printf(",%d", *(int *)pVar->sqldata);
+                    printf(",int(int32_t)");
+                    printf(",%" PRId32, *(int32_t *)pVar->sqldata);
+                    printf(",");
+                    printHex(pVar->sqldata, pVar->sqllen);
+                    break;
+
+                case ECPGt_long:
+                    printf(",long(int64_t)");
+                    printf(",%" PRId64, *(int64_t *)pVar->sqldata);
+                    printf(",");
+                    printHex(pVar->sqldata, pVar->sqllen);
+                    break;
+
+                case ECPGt_numeric:
+                    printf(",numeric");
+                    printf(",%s", PGTYPESnumeric_to_asc((numeric *)pVar->sqldata, -1));
+                    printf(",");
+                    printHex(pVar->sqldata, pVar->sqllen);
                     break;
 
                 default:
                     printf(",%d", pVar->sqltype);
-                    printf(",");
+                    printf(",,");
                     printHex(pVar->sqldata, pVar->sqllen);
                 }
 
