@@ -1,0 +1,277 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <inttypes.h>
+#include <time.h>
+
+EXEC SQL INCLUDE sqlca;
+EXEC SQL INCLUDE sqlda.h;
+// EXEC SQL WHENEVER SQLERROR CALL print_sqlca();
+
+void
+print_sqlca()
+{
+    fprintf(stderr, "==== sqlca ====\n");
+    fprintf(stderr, "sqlcode: %ld\n", sqlca.sqlcode);
+    fprintf(stderr, "sqlerrm.sqlerrml: %d\n", sqlca.sqlerrm.sqlerrml);
+    fprintf(stderr, "sqlerrm.sqlerrmc: %s\n", sqlca.sqlerrm.sqlerrmc);
+    fprintf(stderr, "sqlerrd: %ld %ld %ld %ld %ld %ld\n", sqlca.sqlerrd[0],sqlca.sqlerrd[1],sqlca.sqlerrd[2],
+                                                          sqlca.sqlerrd[3],sqlca.sqlerrd[4],sqlca.sqlerrd[5]);
+    fprintf(stderr, "sqlwarn: %d %d %d %d %d %d %d %d\n", sqlca.sqlwarn[0], sqlca.sqlwarn[1], sqlca.sqlwarn[2],
+                                                          sqlca.sqlwarn[3], sqlca.sqlwarn[4], sqlca.sqlwarn[5],
+                                                          sqlca.sqlwarn[6], sqlca.sqlwarn[7]);
+    fprintf(stderr, "sqlstate: %5s\n", sqlca.sqlstate);
+    fprintf(stderr, "===============\n");
+}
+
+void printHex(const void *pBuf, size_t len)
+{
+    const char *p = pBuf;
+    size_t lenWk;
+    if (len == 0) return;
+    printf("%02hhx", *p++);
+    for (lenWk = len - 1; lenWk > 0; --lenWk)
+    {
+        printf(" %02hhx", *p++);
+    }
+}
+
+int main(int argc, char *argv[])
+{
+    int result = EXIT_FAILURE;
+    int recordCount;
+    int isConnected = 0;
+    int inTransaction = 0;
+    int isCur1Open = 0;
+    sqlda_t *pInSqlda = NULL;
+    sqlda_t *pOutSqlda = NULL;
+    int i;
+    int j;
+
+    EXEC SQL BEGIN DECLARE SECTION;
+        char *phHost;
+        int fetchCount;
+        char hostSql[1000 + 1];
+        char hostK1[10 + 1];
+        char hostF1[1000 + 1];
+        typedef struct {
+            char k1[10 + 1];
+            char f1[1000 + 1];
+        } Record_t;
+        Record_t *pRecord;
+    EXEC SQL END DECLARE SECTION;
+
+    if (argc < 4)
+    {
+        fprintf(stderr, "usage: %s connect_string sampreRecordCount fetchCount\n", argv[0]);
+        fprintf(stderr, "sample: %s 'tcp:postgresql://localhost/postgres?user=alice&password=PasswOrd!' sampleRecordCount fetchCount\n", argv[0]);
+        return EXIT_FAILURE;
+    }
+
+    phHost = argv[1];
+    recordCount = atoi(argv[2]);
+    fetchCount = atoi(argv[3]);
+
+    EXEC SQL WHENEVER SQLERROR GOTO EXIT_BY_SQLERROR;
+
+    printf("CONNECT\n");
+    EXEC SQL CONNECT TO :phHost;
+    isConnected = 1;
+    printf("OK\n");
+
+    printf("CREATE TABLE\n");
+    EXEC SQL
+        CREATE TEMPORARY TABLE sample_table (
+            k1 CHAR(10) NOT NULL,
+            f1 VARCHAR(1000),
+            PRIMARY KEY (k1)
+        );
+    printf("OK\n");
+
+    printf("COMMIT\n");
+    EXEC SQL COMMIT;
+    printf("OK\n");
+
+    printf("INSERT RECORD\n");
+    for (i = 0; i < recordCount; i++) {
+        snprintf(hostK1, sizeof(hostK1), "%010d", i);
+        for (j = 0; j < 1000; j++) {
+            hostF1[j] = 'A' + i % 26;
+        }
+        hostF1[1000] = 0;
+
+        EXEC SQL
+            INSERT INTO sample_table (k1, f1)
+            VALUES (:hostK1, :hostF1);
+    }
+    printf("OK\n");
+
+    printf("COMMIT\n");
+    EXEC SQL COMMIT;
+    printf("OK\n");
+
+//    snprintf(hostSql, sizeof(hostSql), "SELECT K1, F1 FROM sample_table LIMIT %d", fetchCount);
+    snprintf(hostSql, sizeof(hostSql), "SELECT K1, F1 FROM sample_table");
+
+    printf("PREPARE\n");
+    EXEC SQL PREPARE stmt1 FROM :hostSql;
+    printf("OK\n");
+
+//    pRecord = calloc(fetchCount + 1, sizeof(Record_t));
+    pRecord = calloc(recordCount + 1, sizeof(Record_t)); // +1 for test overrun
+
+    printf("EXECUTE\n");
+    EXEC SQL EXECUTE stmt1 INTO :pRecord;
+    printf("OK\n");
+    print_sqlca();
+    inTransaction = 1;
+    isCur1Open = 1;
+
+    for (i = 0; i < sqlca.sqlerrd[2] + 1; i++) { // +1 for test overrun
+        printf("k1: \"%s\", f1: \"%s\"\n", pRecord[i].k1, pRecord[i].f1);
+    }
+//    printf("%s\n", ECPGprepared_statement(NULL, "stmt1", __LINE__));
+//
+//    printf("DECLARE CURSOR\n");
+//    EXEC SQL DECLARE cur1 CURSOR FOR stmt1;
+//    printf("OK\n");
+
+//    if (paramCount > 0) {
+//        printf("Create pInSqlda\n");
+//        pInSqlda = (sqlda_t *)malloc(sizeof(sqlda_t) + sizeof(sqlvar_t) * (paramCount - 1));
+//        *pInSqlda = (sqlda_t){0};
+//        pInSqlda->sqln = paramCount;
+//        for (i = 0; i < paramCount; i++)
+//        {
+//            pInSqlda->sqlvar[i] = (sqlvar_t){
+//                .sqltype = ECPGt_char,
+//                .sqllen = strlen(argv[3 + i]),
+//                .sqldata = argv[3 + i]
+//            };
+//
+//            // pInSqlda->sqlvar[i].sqltype = ECPGt_char;
+//            // pInSqlda->sqlvar[i].sqllen = strlen(argv[3 + i]);
+//            // pInSqlda->sqlvar[i].sqldata = argv[3 + i];
+//            // pInSqlda->sqlvar[i].sqlind = NULL;
+//        }
+//        printf("OK\n");
+//    }
+//    goto EXIT_BY_SQLERROR;
+
+//    printf("OPEN\n");
+//    if (paramCount == 0)
+//    {
+//        EXEC SQL OPEN cur1;
+//    }
+//    else
+//    {
+//        EXEC SQL OPEN cur1 USING DESCRIPTOR pInSqlda;
+//    }
+//    struct timespec ts;
+//    clock_gettime(CLOCK_REALTIME, &ts);
+//    printf("start: %" PRIdMAX ".%09ld\n", (intmax_t)ts.tv_sec, ts.tv_nsec);
+//    EXEC SQL WHENEVER NOT FOUND DO BREAK;
+//    for (;;)
+//    {
+//        sqlda_t *pCurSqlda;
+//
+//        memset(pRecord, 0, sizeof(Record_t) * fetchCount)
+//
+//        printf("FETCH\n");
+//        EXEC SQL FETCH :fetchCount FROM cur1 INTO :pRecord;
+//        printf("OK\n");
+//
+//        for ()
+//
+//
+//        // repeat for row
+//        for (pCurSqlda = pOutSqlda;
+//            pCurSqlda != NULL;
+//            pCurSqlda = pCurSqlda->desc_next)
+//        {
+//            if (getenv("DEBUG"))
+//            {
+//                // repeat for column
+//                for (i = 0; i < pCurSqlda->sqld; i++)
+//                {
+//                    sqlvar_t *pVar = &(pCurSqlda->sqlvar[i]);
+//
+//                    printf("%.*s", pVar->sqlname.length, pVar->sqlname.data);
+//
+//                    switch (pVar->sqltype)
+//                    {
+//                    case ECPGt_char:
+//                        printf(",char[%d]", pVar->sqllen);
+//                        printf(",\"%.*s\"", pVar->sqllen, pVar->sqldata);
+//                        break;
+//
+//                    case ECPGt_int:
+//                        printf(",int");
+//                        printf(",%d", *(int *)pVar->sqldata);
+//                        break;
+//
+//                    default:
+//                        printf(",%d", pVar->sqltype);
+//                        printf(",");
+//                        printHex(pVar->sqldata, pVar->sqllen);
+//                    }
+//
+//                    // column separator
+//                    printf("\n");
+//                }
+//
+//                // row separator
+//                printf("----\n");
+//            }
+//        }
+//    }
+//    clock_gettime(CLOCK_REALTIME, &ts);
+//    printf("end: %" PRIdMAX ".%09ld\n", (intmax_t)ts.tv_sec, ts.tv_nsec);
+//
+//    printf("CLOSE\n");
+//    EXEC SQL CLOSE cur1;
+//    printf("OK\n");
+//    isCur1Open = 0;
+
+    printf("COMMIT\n");
+    EXEC SQL COMMIT;
+    printf("OK\n");
+    inTransaction = 0;
+
+    result = EXIT_SUCCESS;
+    goto EXIT_FUNC;
+
+EXIT_BY_SQLERROR:
+    print_sqlca();
+
+EXIT_FUNC:
+    EXEC SQL WHENEVER SQLERROR CONTINUE;
+
+//    printf("%p\n", pInSqlda);
+//    if (pInSqlda)
+//    {
+//        free(pInSqlda);
+//    }
+
+    if (isCur1Open)
+    {
+        EXEC SQL CLOSE cur1;
+    }
+
+    if (inTransaction)
+    {
+        EXEC SQL ROLLBACK;
+    }
+
+    if (pRecord)
+    {
+        free(pRecord);
+    }
+
+    if (isConnected)
+    {
+        EXEC SQL DISCONNECT;
+    }
+
+    return result;
+}
