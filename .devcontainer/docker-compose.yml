@@ -15,7 +15,7 @@ services:
     build:
       context: ./db/docker
       dockerfile: Dockerfile
-    restart: always
+    # restart: always
     environment:
       POSTGRES_PASSWORD: Passw0rd!
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
