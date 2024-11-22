@@ -1,0 +1,115 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+EXEC SQL WHENEVER SQLERROR CALL print_sqlca();
+
+void
+print_sqlca()
+{
+    fprintf(stderr, "==== sqlca ====\n");
+    fprintf(stderr, "sqlcode: %ld\n", sqlca.sqlcode);
+    fprintf(stderr, "sqlerrm.sqlerrml: %d\n", sqlca.sqlerrm.sqlerrml);
+    fprintf(stderr, "sqlerrm.sqlerrmc: %s\n", sqlca.sqlerrm.sqlerrmc);
+    fprintf(stderr, "sqlerrd: %ld %ld %ld %ld %ld %ld\n", sqlca.sqlerrd[0],sqlca.sqlerrd[1],sqlca.sqlerrd[2],
+                                                          sqlca.sqlerrd[3],sqlca.sqlerrd[4],sqlca.sqlerrd[5]);
+    fprintf(stderr, "sqlwarn: %d %d %d %d %d %d %d %d\n", sqlca.sqlwarn[0], sqlca.sqlwarn[1], sqlca.sqlwarn[2],
+                                                          sqlca.sqlwarn[3], sqlca.sqlwarn[4], sqlca.sqlwarn[5],
+                                                          sqlca.sqlwarn[6], sqlca.sqlwarn[7]);
+    fprintf(stderr, "sqlstate: %5s\n", sqlca.sqlstate);
+    fprintf(stderr, "===============\n");
+}
+
+int main(int argc, char *argv[])
+{
+    EXEC SQL BEGIN DECLARE SECTION;
+        char *phHost;
+        char *phUser;
+        char *phPassword;
+        char hStr[1024];
+    EXEC SQL END DECLARE SECTION;
+
+    if (argc < 2)
+    {
+        fprintf(stderr, "usage: %s target [user [password]]\n", argv[0]);
+        fprintf(stderr, "target:\n");
+        fprintf(stderr, "\tdbname[@hostname][:port]\n");
+        fprintf(stderr, "\ttcp:postgresql://hostname[:port][/dbname][?options]\n");
+        fprintf(stderr, "\tunix:postgresql://localhost[:port][/dbname][?options]\n");
+        fprintf(stderr, "\tDEFAULT\n");
+        fprintf(stderr, "sample:\n");
+        fprintf(stderr, "$ %s 'tcp:postgresql://db/postgres' postgres 'Passw0rd!'\n", argv[0]);
+        fprintf(stderr, "$ %s 'tcp:postgresql://db/postgres?user=postgres&password=Passw0rd!'\n", argv[0]);
+        return EXIT_FAILURE;
+    }
+
+    phHost = argv[1];
+    if (argc >= 3) {
+        phUser = argv[2];
+    }
+    if (argc >= 4) {
+        phPassword = argv[3];
+    }
+
+    if (argc >= 4) {
+        printf("EXEC SQL CONNECT TO :phHost USER :phUser IDENTIFIED BY :phPassword;\n");
+        EXEC SQL CONNECT TO :phHost USER :phUser IDENTIFIED BY :phPassword;
+    }
+    else if (argc >= 3) {
+        printf("EXEC SQL CONNECT TO :phHost USER :phUser\n");
+        EXEC SQL CONNECT TO :phHost USER :phUser;
+    }
+    else {
+        if (strcmp(phHost, "DEFAULT") == 0) {
+            printf("EXEC SQL CONNECT TO DEFAULT\n");
+            EXEC SQL CONNECT TO DEFAULT;
+        }
+        else {
+            printf("EXEC SQL CONNECT TO :phHost\n");
+            EXEC SQL CONNECT TO :phHost;
+        }
+    }
+
+    if (strcmp(sqlca.sqlstate, "00000") != 0)
+    {
+        print_sqlca();
+        return EXIT_FAILURE;
+    }
+
+    EXEC SQL SELECT 'Hello, world!' INTO :hStr;
+    printf("%s\n", hStr);
+
+    EXEC SQL SELECT version() INTO :hStr;
+    printf("version: %s\n", hStr);
+
+    EXEC SQL SELECT current_setting('TIMEZONE') INTO :hStr;
+    printf("timezone: %s\n", hStr);
+
+    EXEC SQL SELECT session_user INTO :hStr;
+    printf("session_user: %s\n", hStr);
+
+    EXEC SQL SELECT current_user INTO :hStr;
+    printf("current_user: %s\n", hStr);
+
+    EXEC SQL SELECT current_database() INTO :hStr;
+    printf("database: %s\n", hStr);
+
+    EXEC SQL SELECT pg_encoding_to_char(encoding) INTO :hStr
+    FROM pg_database
+    WHERE datname = current_database();
+    printf("encoding: %s\n", hStr);
+
+    EXEC SQL SELECT datcollate INTO :hStr
+    FROM pg_database
+    WHERE datname = current_database();
+    printf("collate: %s\n", hStr);
+
+    EXEC SQL SELECT datctype INTO :hStr
+    FROM pg_database
+    WHERE datname = current_database();
+    printf("ctype: %s\n", hStr);
+
+EXIT_FUNC:
+    EXEC SQL DISCONNECT;
+
+    return EXIT_SUCCESS;
+}
