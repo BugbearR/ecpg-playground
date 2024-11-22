@@ -23,19 +23,23 @@ int main(int argc, char *argv[])
 {
     EXEC SQL BEGIN DECLARE SECTION;
         char *phHost;
+        char *phUser;
+        char *phPassword;
         char hStr[1024];
     EXEC SQL END DECLARE SECTION;
 
-    if (argc < 2)
+    if (argc < 4)
     {
-        fprintf(stderr, "usage: %s connect_string\n", argv[0]);
-        fprintf(stderr, "sample: %s 'tcp:postgresql://localhost/postgres?user=alice&password=PasswOrd!'\n", argv[0]);
+        fprintf(stderr, "usage: %s connect_string user password\n", argv[0]);
+        fprintf(stderr, "sample: %s 'tcp:postgresql://db/postgres' postgres 'Passw0rd!'\n", argv[0]);
         return EXIT_FAILURE;
     }
 
     phHost = argv[1];
+    phUser = argv[2];
+    phPassword = argv[3];
 
-    EXEC SQL CONNECT TO :phHost;
+    EXEC SQL CONNECT TO :phHost USER :phUser IDENTIFIED BY :phPassword;
     if (strcmp(sqlca.sqlstate, "00000") != 0)
     {
         print_sqlca();
